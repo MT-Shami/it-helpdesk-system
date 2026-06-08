@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ITHelpdeskAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b6ac4db5e18645084aa05804be9752caca04fb34")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aec173a3be71831c6de30d6a1b12313ae00f4baf")]
 [assembly: System.Reflection.AssemblyProductAttribute("ITHelpdeskAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ITHelpdeskAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

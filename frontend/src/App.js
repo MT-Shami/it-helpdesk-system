@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
+import MyTickets from './pages/MyTickets';
+import CreateTicket from './pages/CreateTicket';
+import EditTicket from './pages/EditTicket';
+import TicketDetails from './pages/TicketDetails';
 import axios from 'axios';
 
 function App() {
@@ -27,11 +32,22 @@ function App() {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     return (
-        <div style={{ padding: '20px' }}>
-            <h1>Welcome, {user.fullName || user.email}!</h1>
-            <p>Roles: {user.roles?.join(', ')}</p>
-            <button onClick={handleLogout}>Logout</button>
-        </div>
+        <BrowserRouter>
+            <div style={{ padding: '10px 20px', background: '#f8f9fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3>IT Helpdesk</h3>
+                <div>
+                    <span>Welcome, {user.fullName || user.email} | Role: {user.roles?.join(', ')} | </span>
+                    <button onClick={handleLogout}>Logout</button>
+                </div>
+            </div>
+            <Routes>
+                <Route path="/tickets" element={<MyTickets />} />
+                <Route path="/tickets/create" element={<CreateTicket />} />
+                <Route path="/tickets/edit/:id" element={<EditTicket />} />
+                <Route path="/tickets/:id" element={<TicketDetails />} />
+                <Route path="*" element={<Navigate to="/tickets" />} />
+            </Routes>
+        </BrowserRouter>
     );
 }
 
