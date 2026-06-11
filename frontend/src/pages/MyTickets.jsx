@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 function MyTickets() {
+    const { isAdminOrAgent } = useAuth();
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     useEffect(() => {
         fetchTickets();
@@ -27,30 +28,27 @@ function MyTickets() {
         if (window.confirm('Are you sure you want to delete this ticket?')) {
             try {
                 await api.delete(`/Tickets/${id}`);
-                fetchTickets(); // refresh list
+                fetchTickets();
             } catch (error) {
                 console.error('Delete error:', error);
             }
         }
     };
 
-    // Calculate statistics
     const stats = {
         open: tickets.filter(t => t.status === 'New' || t.status === 'Open').length,
         inProgress: tickets.filter(t => t.status === 'In Progress').length,
         resolved: tickets.filter(t => t.status === 'Resolved').length,
-        pending: tickets.filter(t => t.status === 'Pending').length,
+        closed: tickets.filter(t => t.status === 'Closed').length,
     };
 
-    // Filter tickets based on search
     const filteredTickets = tickets.filter(t =>
         t.title.toLowerCase().includes(search.toLowerCase()) ||
         t.id.toString().includes(search)
     );
 
-    // Helper functions for badge colors
     const getStatusColor = (status) => {
-        switch(status) {
+        switch (status) {
             case 'New': return 'bg-blue-100 text-blue-800';
             case 'In Progress': return 'bg-orange-100 text-orange-800';
             case 'Pending': return 'bg-yellow-100 text-yellow-800';
@@ -61,7 +59,7 @@ function MyTickets() {
     };
 
     const getPriorityColor = (priority) => {
-        switch(priority) {
+        switch (priority) {
             case 'Low': return 'bg-gray-100 text-gray-800';
             case 'Medium': return 'bg-blue-100 text-blue-800';
             case 'High': return 'bg-orange-100 text-orange-800';
@@ -73,8 +71,7 @@ function MyTickets() {
     if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>;
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            {/* Top bar with welcome and search */}
+        <div className="p-6">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-semibold text-gray-800">My Tickets</h1>
                 <div className="flex items-center space-x-4">
@@ -90,16 +87,9 @@ function MyTickets() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">Welcome, {user.fullName || user.email}</span>
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                            {user.fullName?.charAt(0) || 'U'}
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
                     <p className="text-gray-500 text-sm">Open Tickets</p>
@@ -113,13 +103,12 @@ function MyTickets() {
                     <p className="text-gray-500 text-sm">Resolved</p>
                     <p className="text-3xl font-bold">{stats.resolved}</p>
                 </div>
-                <div className="bg-white rounded-xl shadow p-6 border-l-4 border-yellow-500">
-                    <p className="text-gray-500 text-sm">Pending</p>
-                    <p className="text-3xl font-bold">{stats.pending}</p>
+                <div className="bg-white rounded-xl shadow p-6 border-l-4 border-gray-500">
+                    <p className="text-gray-500 text-sm">Closed</p>
+                    <p className="text-3xl font-bold">{stats.closed}</p>
                 </div>
             </div>
 
-            {/* Create Button */}
             <div className="mb-6">
                 <Link to="/tickets/create">
                     <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition">
@@ -128,19 +117,18 @@ function MyTickets() {
                 </Link>
             </div>
 
-            {/* Ticket Table */}
             <div className="bg-white rounded-xl shadow overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket #</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ticket #</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priority</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -165,7 +153,9 @@ function MyTickets() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                                         <Link to={`/tickets/${ticket.id}`} className="text-blue-600 hover:underline">View</Link>
                                         <Link to={`/tickets/edit/${ticket.id}`} className="text-yellow-600 hover:underline">Edit</Link>
-                                        <button onClick={() => deleteTicket(ticket.id)} className="text-red-600 hover:underline">Delete</button>
+                                        {isAdminOrAgent && (
+                                            <button onClick={() => deleteTicket(ticket.id)} className="text-red-600 hover:underline">Delete</button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

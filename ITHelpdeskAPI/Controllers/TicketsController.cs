@@ -3,22 +3,29 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using ITHelpdeskAPI.Models;
+using ITHelpdeskAPI.Services;
 
 namespace ITHelpdeskAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]  // All endpoints require authentication
+    [Authorize]
     public class TicketsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IActivityLogService _activityLogService;
+        private readonly INotificationService _notificationService;
 
-        public TicketsController(ApplicationDbContext context)
+        public TicketsController(
+            ApplicationDbContext context,
+            IActivityLogService activityLogService,
+            INotificationService notificationService)
         {
             _context = context;
+            _activityLogService = activityLogService;
+            _notificationService = notificationService;
         }
 
-        // GET: api/Tickets
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TicketDto>>> GetTickets()
         {
@@ -31,9 +38,7 @@ namespace ITHelpdeskAPI.Controllers
                 .AsQueryable();
 
             if (!isAdminOrAgent)
-            {
                 query = query.Where(t => t.CreatedById == userId);
-            }
 
             var tickets = await query.Select(t => new TicketDto
             {
@@ -46,13 +51,13 @@ namespace ITHelpdeskAPI.Controllers
                 CreatedById = t.CreatedById,
                 AssignedToAgentId = t.AssignedToAgentId,
                 CreatedByName = t.CreatedBy != null ? t.CreatedBy.UserName : null,
-                AssignedToAgentName = t.AssignedToAgent != null ? t.AssignedToAgent.UserName : null
+                AssignedToAgentName = t.AssignedToAgent != null ? t.AssignedToAgent.UserName : null,
+                CreatedAt = t.CreatedAt
             }).ToListAsync();
 
             return Ok(tickets);
         }
 
-        // GET: api/Tickets/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TicketDto>> GetTicket(int id)
         {
@@ -81,13 +86,67 @@ namespace ITHelpdeskAPI.Controllers
                 CreatedById = ticket.CreatedById,
                 AssignedToAgentId = ticket.AssignedToAgentId,
                 CreatedByName = ticket.CreatedBy?.UserName,
-                AssignedToAgentName = ticket.AssignedToAgent?.UserName
+                AssignedToAgentName = ticket.AssignedToAgent?.UserName,
+                CreatedAt = ticket.CreatedAt
             };
 
             return Ok(ticketDto);
         }
 
-        // POST: api/Tickets
+        [HttpGet("assigned-to-me")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<ActionResult<IEnumerable<TicketDto>>> GetAssignedToMe()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var tickets = await _context.Tickets
+                .Include(t => t.CreatedBy)
+                .Include(t => t.AssignedToAgent)
+                .Where(t => t.AssignedToAgentId == userId)
+                .Select(t => new TicketDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    Priority = t.Priority,
+                    Category = t.Category,
+                    CreatedById = t.CreatedById,
+                    AssignedToAgentId = t.AssignedToAgentId,
+                    CreatedByName = t.CreatedBy != null ? t.CreatedBy.UserName : null,
+                    AssignedToAgentName = t.AssignedToAgent != null ? t.AssignedToAgent.UserName : null,
+                    CreatedAt = t.CreatedAt
+                }).ToListAsync();
+
+            return Ok(tickets);
+        }
+
+        [HttpGet("unassigned")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<ActionResult<IEnumerable<TicketDto>>> GetUnassigned()
+        {
+            var tickets = await _context.Tickets
+                .Include(t => t.CreatedBy)
+                .Include(t => t.AssignedToAgent)
+                .Where(t => t.AssignedToAgentId == null)
+                .Select(t => new TicketDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    Priority = t.Priority,
+                    Category = t.Category,
+                    CreatedById = t.CreatedById,
+                    AssignedToAgentId = t.AssignedToAgentId,
+                    CreatedByName = t.CreatedBy != null ? t.CreatedBy.UserName : null,
+                    AssignedToAgentName = t.AssignedToAgent != null ? t.AssignedToAgent.UserName : null,
+                    CreatedAt = t.CreatedAt
+                }).ToListAsync();
+
+            return Ok(tickets);
+        }
+
         [HttpPost]
         public async Task<ActionResult<TicketDto>> CreateTicket(CreateTicketDto createDto)
         {
@@ -102,13 +161,16 @@ namespace ITHelpdeskAPI.Controllers
                 Priority = createDto.Priority,
                 Category = createDto.Category,
                 Status = "New",
-                CreatedById = userId
+                CreatedById = userId,
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.Tickets.Add(ticket);
             await _context.SaveChangesAsync();
 
             await _context.Entry(ticket).Reference(t => t.CreatedBy).LoadAsync();
+
+            await _activityLogService.LogAsync(userId, ticket.Id, "Ticket Created", $"Title: {ticket.Title}");
 
             var ticketDto = new TicketDto
             {
@@ -119,15 +181,13 @@ namespace ITHelpdeskAPI.Controllers
                 Priority = ticket.Priority,
                 Category = ticket.Category,
                 CreatedById = ticket.CreatedById,
-                CreatedByName = ticket.CreatedBy?.UserName
+                CreatedByName = ticket.CreatedBy?.UserName,
+                CreatedAt = ticket.CreatedAt
             };
 
             return CreatedAtAction(nameof(GetTicket), new { id = ticket.Id }, ticketDto);
         }
 
-        // PUT: api/Tickets/5
-        // Employees can edit their own tickets (title, description, priority, category)
-        // Admins and Agents can edit all fields including status and assigned agent
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTicket(int id, UpdateTicketDto updateDto)
         {
@@ -140,20 +200,16 @@ namespace ITHelpdeskAPI.Controllers
 
             if (!isAdminOrAgent)
             {
-                // Employee: can only edit their own tickets
                 if (ticket.CreatedById != userId)
                     return Forbid();
 
-                // Limit editable fields for employees
                 ticket.Title = updateDto.Title;
                 ticket.Description = updateDto.Description;
                 ticket.Priority = updateDto.Priority;
                 ticket.Category = updateDto.Category;
-                // status and AssignedToAgentId remain unchanged
             }
             else
             {
-                // Admin/Agent: full edit
                 ticket.Title = updateDto.Title;
                 ticket.Description = updateDto.Description;
                 ticket.Status = updateDto.Status;
@@ -163,10 +219,62 @@ namespace ITHelpdeskAPI.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            await _activityLogService.LogAsync(userId!, ticket.Id, "Ticket Updated");
+
             return NoContent();
         }
 
-        // DELETE: api/Tickets/5
+        [HttpPut("{id}/assign")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> AssignTicket(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound();
+
+            ticket.AssignedToAgentId = userId;
+
+            if (ticket.Status == "New")
+                ticket.Status = "In Progress";
+
+            await _context.SaveChangesAsync();
+
+            await _activityLogService.LogAsync(userId!, ticket.Id, "Ticket Assigned");
+
+            if (ticket.CreatedById != null && ticket.CreatedById != userId)
+                await _notificationService.SendAsync(ticket.CreatedById, $"Ticket #{ticket.Id} has been assigned to an agent", ticket.Id);
+
+            return Ok(new { message = "Ticket assigned successfully" });
+        }
+
+        [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin,Agent")]
+        public async Task<IActionResult> ChangeStatus(int id, [FromBody] ChangeStatusDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var ticket = await _context.Tickets.FindAsync(id);
+            if (ticket == null)
+                return NotFound();
+
+            var validStatuses = new[] { "New", "In Progress", "Resolved", "Closed" };
+            if (!validStatuses.Contains(dto.Status))
+                return BadRequest("Invalid status value");
+
+            ticket.Status = dto.Status;
+            await _context.SaveChangesAsync();
+
+            await _activityLogService.LogAsync(userId!, ticket.Id, "Status Changed", $"Changed to {dto.Status}");
+
+            if (ticket.CreatedById != null && ticket.CreatedById != userId)
+                await _notificationService.SendAsync(ticket.CreatedById, $"Ticket #{ticket.Id} status changed to {dto.Status}", ticket.Id);
+
+            return Ok(new { message = "Status updated" });
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin,Agent")]
         public async Task<IActionResult> DeleteTicket(int id)
@@ -175,9 +283,19 @@ namespace ITHelpdeskAPI.Controllers
             if (ticket == null)
                 return NotFound();
 
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             _context.Tickets.Remove(ticket);
             await _context.SaveChangesAsync();
+
+            await _activityLogService.LogAsync(userId!, null, "Ticket Deleted", $"Ticket #{id} deleted");
+
             return NoContent();
         }
+    }
+
+    public class ChangeStatusDto
+    {
+        public string Status { get; set; } = string.Empty;
     }
 }

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
-function Login({ onLogin }) {
+function Login() {
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -11,16 +13,13 @@ function Login({ onLogin }) {
         e.preventDefault();
         setError('');
         try {
-            const response = await axios.post('https://localhost:7142/api/Auth/login', { email, password });
+            const response = await api.post('/Auth/login', { email, password });
             if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
-                localStorage.setItem('user', JSON.stringify({
+                login(response.data.token, {
                     email: response.data.email,
                     fullName: response.data.fullName,
                     roles: response.data.roles
-                }));
-                axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-                onLogin(true);
+                });
             }
         } catch (err) {
             setError('Invalid email or password');
@@ -78,7 +77,7 @@ function Login({ onLogin }) {
                     </button>
                 </form>
                 <div className="mt-6 text-center text-sm text-gray-500">
-                    <a href="#" className="text-blue-600 hover:underline">Forgot password?</a>
+                    <span className="text-blue-600 cursor-default">Forgot password?</span>
                 </div>
             </div>
         </div>
