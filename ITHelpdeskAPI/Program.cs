@@ -42,7 +42,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://it-helpdesk-frontend.onrender.com")
+        policy.WithOrigins(
+            "http://localhost:3000",
+            "https://it-helpdesk-frontend.onrender.com",
+            "https://it-helpdesk-frontend.vercel.app"
+        )
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
