@@ -1,0 +1,14 @@
+**/.git
+**/.gitignore
+**/.vs
+**/bin
+**/obj
+**/node_modules
+.github
+Database
+Documentation
+frontend
+README.md
+*.md
+*.user
+appsettings.Development.json
