@@ -115,6 +115,25 @@ using (var scope = app.Services.CreateScope())
         if (!await roleManager.RoleExistsAsync(roleName))
             await roleManager.CreateAsync(new IdentityRole(roleName));
     }
+
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var testEmail = "employee@test.com";
+    if (await userManager.FindByEmailAsync(testEmail) == null)
+    {
+        var testUser = new ApplicationUser
+        {
+            UserName = testEmail,
+            Email = testEmail,
+            FullName = "Test Employee",
+            EmailConfirmed = true
+        };
+        var createResult = await userManager.CreateAsync(testUser, "Test@123");
+        if (createResult.Succeeded)
+        {
+            await userManager.AddToRoleAsync(testUser, "Employee");
+            await userManager.AddToRoleAsync(testUser, "Agent");
+        }
+    }
 }
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5018";
