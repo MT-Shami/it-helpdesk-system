@@ -22,7 +22,9 @@ function Login() {
                 });
             }
         } catch (err) {
-            setError('Invalid email or password');
+            const detail = err.response?.data?.message || err.response?.data || err.message || 'Invalid email or password';
+            console.error('[Login] Error:', err.response?.status, detail);
+            setError(detail);
         }
     };
 

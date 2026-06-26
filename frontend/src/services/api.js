@@ -4,6 +4,8 @@ const api = axios.create({
     baseURL: 'https://it-helpdesk-api-mts.onrender.com/api',
 });
 
+console.log('[API] baseURL:', api.defaults.baseURL);
+
 // Add the JWT token to every request automatically
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
