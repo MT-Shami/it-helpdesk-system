@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5018/api',
+    baseURL: 'https://it-helpdesk-api-mts.onrender.com/api',
 });
 
 // Add the JWT token to every request automatically
