@@ -45,7 +45,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
             "http://localhost:3000",
             "https://it-helpdesk-frontend.onrender.com",
-            "https://it-helpdesk-frontend.vercel.app"
+            "https://it-helpdesk-system-xi.vercel.app"
         )
               .AllowAnyMethod()
               .AllowAnyHeader()
