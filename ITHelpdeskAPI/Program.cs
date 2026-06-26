@@ -42,7 +42,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins("http://localhost:3000", "https://it-helpdesk-frontend.onrender.com")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -92,7 +92,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseStaticFiles();
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
@@ -114,4 +117,5 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.Run();
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5018";
+app.Run($"http://*:{port}");
